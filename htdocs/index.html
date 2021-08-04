@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en-US">
+
+<head>
+  <meta charset="utf-8">
+  <title>Emoji Dissector - Unicode debugger</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" type="image/svg+xml" href="icon.svg" sizes="any">
+  <link rel="manifest" href="site.webmanifest">
+  <link rel="stylesheet" href="style.css">
+  <meta name="theme-color" content="#fafafa">
+  <!-- TODO: Noto Sans and/or font selector? -->
+</head>
+
+<body>
+  <header>
+    <img src="icon.svg" width="200" height="200">
+    <h1>Emoji dissector</h1>
+    <h2>Unicode debugger</h2>
+    <div>Many emoji (especially e.g. flags, job/sports emoji, emoji with skin tone or gender) actually consist of multiple "Unicode characters" (code points). Sometimes, Unicode characters are also used to create special font effects. This tool will take apart any Unicode string and tell you exactly which individual "characters" (code points) it consists of. You can find a more detailed explanation below.</div>
+  </header>
+  <main>
+    <div id="in">
+      Enter Unicode:
+      <input id="unicode-input" type="text">
+      <button onclick="dissect()">🔪 Dissect!</button>
+    </div>
+    <div id="examples">
+      or pick an example:
+      <br> 
+      <!-- TODO: move examples to code generator; add explanations -->
+      <button onclick="example(this)" title="single-codepoint Umlaut">ä</button>
+      <button onclick="example(this)" title="combining Umlaut">ä</button>
+      <button onclick="example(this)" title="fancy 'realistic' string">3 € pro Ge­rät</button>
+      <button onclick="example(this)" title="Korean word (Gamgi, 'Flu')">감기</button>
+      <button onclick="example(this)" title="Korean word (Gamgi, 'Flu') decomposed in NFD">감기</button>
+      <button onclick="example(this)" title="Unnamed CJK ideograph">丣</button>
+      <button onclick="example(this)" title="Fraktur">𝕱𝖗𝖆𝖐𝖙𝖚𝖗</button>
+      <button onclick="example(this)" title="inverted text">pǝʇɹǝʌuı</button>
+      <button onclick="example(this)" title="hieroglyphs">𓂾𓂸</button>
+      <button onclick="example(this)" title="Latheirt ('massive hangover', Unicode Standard, Version 12.0, page 356, bottom)">᚛ᚂᚐᚈᚆᚓᚔᚏᚒ᚜</button>
+      <button onclick="example(this)" title="(eastern) arabic numerals">١٢٣٤٥٦٧٨٩٠</button>
+      <br>
+      <button onclick="example(this)" title="simple emoji">💩</button>
+      <button onclick="example(this)" title="emoji with skin tone">👋🏾</button>
+      <button onclick="example(this)" title="different types of hair">🧑🏿‍🦰👩‍🦲🧔🏿‍♂️</button>
+      <button onclick="example(this)" title="male health worker, white">👨🏻‍⚕️</button>
+      <button onclick="example(this)" title="male police officer, white">👮🏻‍♂️</button>
+      <button onclick="example(this)" title="simple family">👨‍👩‍👧‍👦</button>
+      <button onclick="example(this)" title="family with skin tones">👨🏿‍👩🏻‍👧‍👦🏾</button>
+      <button onclick="example(this)" title="ridiculous modifier emoji (pair of dancers with bunny ears, dark skin, red hair, male)">👯🏿‍🦰‍♂️</button>
+      <button onclick="example(this)" title="national flag">🇨🇭</button>
+      <button onclick="example(this)" title="pirate flag">🏴‍☠️</button>
+      <button onclick="example(this)" title="transgender flag">🏳️‍⚧️</button>
+      <button onclick="example(this)" title="same flag, two variations">🙂︎🏳︎🙂🏳🙂️🏳️</button>
+      <br>
+      <button onclick="example(this)" title="Shruggie">¯\_(ツ)_/¯</button>
+      <button onclick="example(this)" title="Lenny face">( ͡° ͜ʖ ͡°)</button>
+      <button onclick="example(this)" title="ZALGO! HE COMES!">Z̖̪͕̝̱̝͍̰͉͑̾ͪ͗ͪA͙̰̹̺̯̲̅̆̒̐̎Ḷ͍͔̪̫̓̌̾͒͗ͬͣĠ̶̛̤̠̯̥̞̥̺̭͒ͪ̋̎̃ͥ̋͜Ŏ̼̺̠̻͍̫!̼͚̞̟̦̳̯̩ͩ̊̄ͥ̌̚</button>
+      <button onclick="example(this)" title="ligatures">ﬁ ﷽</button>
+      <button onclick="example(this)" title="blocky">𒐪█████</button>
+
+      <!-- TODO: https://xkcd.com/1813/ -->
+      <!-- TODO: https://en.wikipedia.org/wiki/Bidirectional_text#Unicode_bidi_support https://xkcd.com/1137/ -->
+      <!-- TODO: 
+        - insert codepoints (e.g. ZWJs, modifiers, ...)
+        - delete/decompose codepoints
+        - normalization
+        - search?
+        - hex input?
+        - cheat sheet
+        - display encoded versions (UTF-8, UTF-16, each hex/binary and color-coded, ...)
+        - display more info from Unicode
+      -->
+    </div>
+    <div id="loading">Loading UnicodeData.txt...</div>
+    <div id="rawout">
+    </div>
+    <table id="out">
+    </table>
+    <div id="references">
+      <strong>References/tools:</strong><br>
+      Wikipedia -
+      <a href="https://en.wikipedia.org/wiki/Unicode_input">input</a>,
+      <a href="https://en.wikipedia.org/wiki/List_of_Unicode_characters">character list</a>,
+      <a href="https://en.wikipedia.org/wiki/Plane_(Unicode)">planes</a><br>
+      Unicode consortium - 
+      <a href="https://unicode.org/emoji/charts/emoji-list.html">Emoji list</a> (has <a href="http://cldr.unicode.org/">CLDR</a> names/keywords),
+      <a href="https://www.unicode.org/Public/emoji/">Emoji data</a>,
+      <a href="UnicodeData.txt">UnicodeData.txt</a><br>
+      qaz.wtf -
+      <a href="https://qaz.wtf/u/convert.cgi?text=asdf">converter</a>,
+      <a href="https://qaz.wtf/u/">other tools</a><br>
+      eeemo.net - <a href="http://www.eeemo.net/">Zalgo generator</a><br>
+    </div>
+    <div id="explainer">
+      <h3>A quick introduction to Unicode</h3>
+      <div>Initially, computers only supported a very basic character set, consisting of 128 or 256 distinct character codes, sufficient for the English language. Later, <i>Codepages</i> were introduced, which allowed introducing language specific characters (using codes 128-255) in additon to the characters common to all systems (0-127). However, only one code page could be active at any time, and the same numeric value was mapped to different characters depending on the code page. When a document was interpreted in the wrong code page, language-specific characters would be garbled, and the number of supported characters was limited. Similar concepts under different names and with custom character maps were introduced on different systems, making it hard to exchange data.</div>
+      
+      <div><i><b>Unicode</b></i> addresses this problem by allowing a much larger range of codes, providing one universal way to express all languages and characters (sort of). Each of these numbers is called a <i>codepoint</i> (or code point), which roughly (but not exactly) corresponds to a "character" (see below). These code points are usually identified with a hexadecimal number. When you see a hex number above, it is one of these codepoints.</div>
+      <div>The codepoints are commonly separated into the following <i>planes</i> (ranges of code points):
+        <ul>
+          <li><b>Basic Multilingual Plane (BMP)</b>, ranging from 0x0000 - 0xFFFF and including latin characters with diacritics like the German ä, <i>CJK</i> (Chinese, Japanese, Korean) symbols, some basic symbols, etc. (but not the Emoji). It also contains a reserved range of <i>surrogates</i>, which don't encode actual characters but are used for UTF-16 encoding, see below.</li>
+          <li><b>Supplementary Multilingual Plane (SMP)</b>, ranging from 0x10000 - 0x1FFFF. Among other things, this contains many historical scripts, and the <i><b>Emoji</b></i></li>
+          <li>two planes for additional CJK ideographs (0x20000 - 0x3FFFF), one plane for special use, and additional planes for "private use" where organizations can define internally used symbols</li>
+        </ul>
+      </div>
+
+      <h4>Encodings</h4>
+      <div>The large range of Unicode codepoints cannot be expressed as a single byte anymore. Multiple <i>encodings</i> (ways to express those numbers) exist:
+      <ul>
+        <li><b>UTF-8</b> is by far the most common encoding for stored and transmitted data. It encodes code points up to 0x7F (decimal: 127) as one byte, code points from 0x80 - 0x7FF as two bytes, 0x800 - 0xFFFF (i.e. up to the end of the BMP) as three bytes, and beyond that as 4 bytes.</li>
+        <li><b>UCS-2</b> (deprecated) encodes each codepoint as two bytes, but as a result, it can only express the first 65536 codepoints - the Basic Multilingual Plane.</li>
+        <li><b>UTF-16</b> is very similar to UCS-2, can express higher code points as a pair of <i>surrogates</i>, resulting in 2 bytes for codepoints from the BMP, but 4 bytes for higher code points.</li>
+        <li><b>UTF-32</b> encodes each code point as 4 bytes. This makes it the only currently valid fixed-width encoding and simple to interpret, but it also consumes the most space.</li>
+      </ul>
+      </div>
+      <div>
+      The differences and limitations of these encodings are still sometimes visible even in major software products (e.g. bugs that are triggered if you use emoji or other characters beyond the BMP).
+      While the encoded bytes sometimes match the codepoint value (e.g. in UCS-2/UTF-16 for codepoints up to 0xFFFF, codepoint 0x1234 will be encoded as 0x1234), this is not always the case. <b>This website always talks about the codepoint values, not the encoded form!</b> For example, if you look at a text file containing <tt>ä</tt> (0x00E4) with a hex editor, you will most likely find the UTF-8 encoded form 0xc3a4. To complicate matters more, the byte order (endianness) is not specified for UCS-2, UTF-16 and UTF-32, i.e. there are two variants of each of these (one would express this codepoint as 0x00E4, the other as 0xE400). As you can see, correctly encoding and decoding these can be tricky. Leave this to existing libraries - there are many, often security-critical mistakes that can be made.
+      </div>
+      <div>
+        Variable-length encodings like UTF-8 or UTF-16 save space, but can be more expensive to decode and process. For example, it is impossible to determine the length of a string (in codepoints) from the length of the encoded form. It's also no longer possible to skip directly to a certain index (i.e. the n-th codepoint) in a string.
+      </div>
+
+      <h4>Unicode terms</h4>
+      <ul>
+        <li><b>Character</b> can be confusing, and should probably not be used when dealing with Unicode on a technical level. As you will see below, what you can see as one "character" (grapheme) on the screen can be one or multiple codepoints, and some characters can even be encoded either as one or as multiple codepoints!</li>
+        <li><b>Codepoint</b> is what comes closest to a "character" from a programmer's perspective in most cases, and is the closest equivalent to "one byte" in an ASCII string. It's one number representing an entry in the Unicode "character table" (but it may be e.g. a combining character, or something invisible). Note that some code points are reserved for usage for special purposes, and don't actually represent a character.</li>
+        <li><i><b>Code unit</b></i> is the actual encoded unit that is being written. For UTF-8 this is a byte, for UTF-16 it's two bytes together. Multiple code units may be needed to encode one code point.</li>
+        <li><i><b>Grapheme cluster</b></i>, also known simply as <i><b>Grapheme</b></i>, is what comes closest to to a "character" from a human perspective. For example, ä would be one grapheme, regardless if it is encoded as one codepoint, or a combination of <tt>a</tt> with a combining umlaut 0x0308 (compare the two using the buttons above!)</li>
+        <li><i><b>Glyph</b></i> is the graphical representation of a character, which Unicode neither defines nor cares about.</li>
+        <li><b><s>Rune</s></b> is not a Unicode term, but the name Go (Golang the programming language) uses for a codepoint, because following common conventions seems to be against the principles of Golang.</li>
+      </ul>
+      <div>Understanding the differences between these terms is key to understanding Unicode!</div>
+
+      <h4>Programming language Unicode handling</h4>
+      <div>Understand the terms above before you continue. When truncating strings, ensure you do not split a code point (generating an invalid encoding) in languages that work on code units! In general, support for graphemes is lacking and you will need additional libraries to avoid splitting them.</div>
+      <div>In <b>Python 3</b>, regular strings are Unicode strings, internally stored using 1, 2 or 4 bytes per "character" (codepoint) based on the highest code point (you don't have to care too much about that). String length, iteration and indexing is based on codepoints. Byte strings exist and you need to explicitly encode/decode to get from a regular to a byte string or vice versa. <a href="https://docs.python.org/3/howto/unicode.html">Howto</a></div>
+      <div><b>Golang</b> strings are <em>mostly</em> treated as byte strings, which are expected (but not required) to contain valid UTF-8. Length and indexing is based on bytes (in the UTF-8 encoded form, aka code units). Iteration is based on Unicode codepoints (called "runes") with the returned index indicating the start byte (i.e. it is non-contiguous during iteration) and invalid codepoints replaced with the 0xFFFD replacement character. Use the <tt>unicode/utf8</tt> package for e.g. string length in codepoints. <a href="https://blog.golang.org/strings">Howto</a></div>
+      <div><b>JavaScript</b> <em>mostly</em> works on two-byte (UTF-16) code units, e.g. for string length, indexing, <code>charAt</code>, <code>charCodeAt</code>. This is equivalent to code points for the BMP, but gives you individual surrogate pairs for codepoints beyond the BMP. The string iterator <code>for (const c of somestring)</code> works on codepoints (but invalid surrogates are returned individually). <code>codePointAt(n)</code> indexes using UTF-16 code units, and returns Unicode code points (but invalid surrogates, including if you point it at the second surrogate in a pair, are returned individually).</div>
+
+      
+      <h4>The examples, explained</h4>
+      <div>The example buttons you can find above show some peculiarities that make Unicode so complicated. This section explains them</div>
+      
+      <h5>Composition - the difference between ä and ä</h5>
+      <div>The two buttons that look like <tt>ä</tt> look exaclty the same, represent the same grapheme, but one of them is a single code point while the other consists of two code points, encoding a letter and a combining character.
+        Both are valid forms (<i>composed</i> and <i>decomposed</i>). A normalized version of both forms exists, and it is possible to automatically convert between those. Software that ignores this runs at risk of considering two strings different when they really are the same, which can lead to security issues or other bugs: For example, if a filesystem or database normalizes a filename or value, it may no longer match what is recorded in some other place.
+      </div>
+      <div>The pair of buttons with Korean text (<tt>감기</tt>) are another example of (de)composition</div>
+
+      <h5>Controlling line breaks and hyphenation</h5>
+      <div>The <tt>3 € pro Ge­rät</tt> example shows off two invisible characters (as well as an Umlaut and Euro sign). The space between <tt>3</tt> and <tt>€</tt> is a no-break space, i.e. an automatic line break will never separate the number from the currency symbol. A soft hyphen invisibly separates the syllables of the word <tt>Gerät</tt>, indicating that software displaying the text can insert a line break while showing a hyphen. Many other such invisible characters exist, e.g. the Zero-width Space (which will allow a line break without a hyphen).</div>
+
+      <h5>Codepoint naming</h5>
+      <div>Most codepoints have names, but some just have numbers or identifiers. In case of the CJK (Chinese, Japanese, Korean) ideographs (symbols) this is likely both due to the large number of them, and because some of them are reused across multiple langauges. Take a look at <tt>丣</tt> and the hieroglyps!</div>
+
+      <h5>Pseudofonts</h5>
+      <div>There are sets of characters that are just a variantion of latin alphabet letters. In particular, mathematicians love variables so much that they often run out of letters. When they're tired of (or have exhausted) the Greek alphabet (both uppercase and lowercase), they sometimes turn to letters with additional marks added, bold letters, Fraktur, etc. These characters can be used to create "fonts", bold text etc. in environments that don't support custom formatting but do support Unicode. A converter showing more examples is linked in the tools list. The <tt>𝕱𝖗𝖆𝖐𝖙𝖚𝖗</tt> and <tt>pǝʇɹǝʌuı</tt> examples show the different ways in which these pseudo-fonts work.</div>
+
+      <h5>Unusual scripts</h5>
+      <div>Unicode does not only cover modern languages, and the Egyptean Hieroglyps contain depictions that can be understood (though perhaps not with the same meaning as they had in Ancient Egypt) even without a degree in Egyptology. Since this makes them prone to creative use, some operating systems may censor either the names or the glyphs themselves. If you are using an operating system that displays Unicode correctly, you can find a pictoral representation of a German idiom.</div>
+
+      <div>As is shown next, Unicode also supports other <b>ancient scripts</b>. A particularly hilarious example cited in the Unicode standard is listed here. Look up the full story!</div>
+
+      <div><b>Arabic numerals</b>, at least in the Western world, usually refers to Western Arabic numerals, 1234567890. However, Eastern Arabic numerals are still widely used in some parts of the world (and supported by Unicode, of course), with some glyphs looking confusingly similar to Western Arabic ones with a different meaning! So if you want to be pedantic, and a form asks for "arabic numerals" but doesn't do proper input validation, Unicode allows you to use either!</div>
+      
+      
+      <h5>Emoji</h5>
+      <div>The Emoji come from various sources (dating back to Wingdings, old feature phones, and Japanese mobile carrier standards, which explains some Emoji that are very Japan-specific), and are strewn across multiple blocks and planes of the Unicode code space. Over time, they developed from simple, single codepoint emoji like the <b>famous Pile of Poo</b> into an incredibly complex standard, and some noteworhty examples are shown here.</div>
+      <div><b>Skin colors</b> are represented by adding one of 5 skin color modifiers in specific places, which works both for simple emoji like the waving hand and composited emoji like the latter examples. Since these are modifiers, they do not require a Zero Width Joiner, unlike the next example. Not all emoji support skin color: Look at <code>emoji-sequences.txt</code> or <code>emoji-test.txt</code> in the latest release of the Emoji Data (see Unicode Consortium links above) to see which of them do.</div>
+      <div>As the set of Emoji has grown over time with newer versions of the Unicode standard, some logically similar Emoji are expressed in different ways. For example, some jobs like doctors are expressed with a MAN or WOMAN emoji, combined with a STAFF OF AESCULAPIUS symbol using a Zero Width Joiner. However, a dedicated emoji codepoint already existed for some jobs, so for those, the existing Unicode for the job is instead combined with a gender symbol to generate a gendered emoji. In general, these representations are somewhat backwards compatible: Software that isn't aware of the combination will render the glyphs for the individual characters, which doesn't look as nice, but is understandable.</div>
+      <div><b>Family</b> emojis are similarly combined with Zero Width Joiners, and while skin colors are supported, some devices or programs will render these as four faces next to each other. Take a look how these render on different devices! Mobile devices tend to be better at handling the more advanced features of Unicode, especially when it comes to emojis.</div>
+      <div>To trigger this legacy behavior, a <b>ridiculous overuse of various modifiers/components</b> starting with the WOMAN WITH BUNNY EARS emoji (which has earned its own codepoint in Unicode!) exists as a separate example. It's technically correct, but... it's unlikely that a device maker will implement each specific combination of hair, skin and gender for this unique emoji. The Unicode consortium has released standards indicating which combinations should be commonly supported - look at <code>emoji<b>-zwj-</b>sequences.txt</code> or <code>emoji-test.txt</code> in the latest release of the Emoji Data (see Unicode Consortium links above) to see which of them do.</div>
+      <div><b>Flags</b> are interesting, and again show how similar-looking concepts may be expressed very differently on a technical level in Unicode. For example, nation flags are expressed using regional indicator codepoints spelling out the country code, while the pirate and trans flag are combinations of a flag with a symbol (again maintaining backwards compatibility by causing old clients to render a human-understandable equivalent).</div>
+      <div>You may have noted that some emoji contain the <b>Variation Selector</b>: Some codepoints can be rendered either as a colored graphical emoji or a black and white, more text-like outline. This can (sometimes) be controlled with the variation selector. The default rendering depends on the codepoint and sometimes also on the software used. The example shows a smiley and a flag with a "render as text" variation selector, without a variation selector, and with a "rendder as emoji" variation selector. This is not the only use of the variation selectors, but explaining all of them is beyond this site - after all, there is a reason the Unicode standard is over 1000 pages.</div>
+      <div>In addition to regular emoji, there are various <b>ASCII art</b> style "drawings" like the shruggie or the Lenny face, now empowered with all the other characters made easily accessible through Unicode. Now you can see how those are built!</div>
+
+      
+      <h5>Bigger than expected</h5>
+      <div><b>Zalgo</b> is a particular form of abuse of combining diacritics. You can add an astonishing number of them to a single character, often causing it to overflow outside the arranged space, covering other text and creating an impression of dangerous corruption, and disrupt e.g. chat rooms. It's a lot less impressive once you know how it works, but if you work with user generated content, you should design your HTML and CSS so that content from one user cannot cover other user's content.</div>
+      <div><b>Ligatures</b> are used to make text look nicer: For specific combination of letters (e.g <tt>fi</tt>), simply placing the standard letter forms next to each other doesn't look good, so special decorative combinations have been developed (if you wonder why you sometimes can't copy the letter f from a PDF file... that's why). Computer systems normally use these automatically, but it's also possible to specify them explicitly in Unicode. Ligatures can also get more complex and especially in Arabic, may represent important words or phrases, written in a calligraphic manner.</div>
+      <div>While we're talking about large glyphs: Certain glyphs are very... <b>imposing</b>, either by design (e.g. the Full Block "Block Element", actually meant for text-based graphics, which can be used to make it appear as if text was censored) or simply because that's what they look like in an ancient writing system, e.g. the cuneiform numerals. This shows that it is dangerous to make assumptions about character widths or line heights.</div>
+    </div>
+      <em>A project by Jan Schejbal</em>
+
+  </main>
+  <script>
+    "use strict";
+    const input = document.getElementById('unicode-input');
+    const out = document.getElementById('out');
+    const loading = document.getElementById('loading');
+
+    var unicodeData = null;
+
+    async function load() {
+      const resp = await fetch('UnicodeData.txt');
+      if (!resp.ok) {
+        throw `Failed to fetch Unicode database: {resp.status} {resp.statusText}`;
+      }
+      const data = await resp.text()
+
+      const map = new Map();
+      let ranges = [];
+      let range = null;
+      data.trim().split('\n').forEach((line) => {
+        const cols = line.split(';');
+        const hex4 = cols[0];
+        const name = cols[1];
+        if (name.startsWith('<') && name.endsWith(', First>')) {
+          range = {start: parseInt(hex4, 16), name: name.slice(1, -8)};
+        } else if (range && name.startsWith('<') && name.endsWith(', Last>')) {
+          let tmpRangeName = name.slice(1, -7);
+          if (range.name == tmpRangeName) {
+            range.end = parseInt(hex4, 16);
+            ranges.push(range);
+          }
+          range = null;
+        } else {
+          map.set(hex4, name);
+          range = null;
+        }
+      })
+
+      unicodeData = {map: map, ranges: ranges};
+    }
+
+    load().then(() => {
+      loading.remove()
+    }).catch((e) => {
+      loading.innerText = e;
+    });
+
+    function el(tag, text, cssClass) {
+      const e = document.createElement(tag);
+      e.textContent = text;
+      e.className = cssClass;
+      return e;
+    }
+
+    function example(e) {
+      input.value = e.textContent;
+      dissect();
+    }
+
+    function nameForHex4(hex4) {
+      const fromMap = unicodeData.map.get(hex4);
+      if (fromMap !== undefined) {
+        return fromMap;
+      }
+      const cp = parseInt(hex4, 16);
+      for (var i = 0; i<unicodeData.ranges.length; i++) {
+        const r = unicodeData.ranges[i];
+        console.log(r);
+        if (r.start <= cp && cp <= r.end) {
+          // Naming convention: Unicode Standard, 4.8
+          return r.name + '-' + hex4;
+        }
+      }
+      return '(unknown)';
+    }
+
+    function rowForChar(c) {
+      const row = el('tr');  
+      
+      row.appendChild(el('td', c));
+
+      const hex = c.codePointAt(0).toString(16).toUpperCase();
+      const hex4 = (hex.length >= 4) ? hex : ('0000' + hex).slice(-4);
+      row.appendChild(el('td', hex4, 'hex'));
+      
+      row.appendChild(el('td', nameForHex4(hex4)));
+      return row;
+    }
+
+    function dissect() {
+      if (!unicodeData) {
+        alert("Unicode data not yet loaded.")
+        return;
+      }
+      rawout.textContent = input.value;
+      out.textContent = '';
+      for (const c of input.value) {
+        out.appendChild(rowForChar(c));
+      }
+    }
+  </script>
+</body>
+
+</html>
